@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <h1>College Football Games</h1>
+    <ul>
+      {% for game in games %}
+        <li>{{ game.home_team }} vs {{ game.away_team }} - Line: {{ game.line }}</li>
+      {% endfor %}
+    </ul>
+  </body>
+</html>
