@@ -3,8 +3,7 @@ import os
 from cfbd.rest import ApiException
 from dotenv import load_dotenv
 import os
-from app import app
-from models import db, Game
+from app import app, db, Game
 
 load_dotenv()
 
@@ -27,36 +26,62 @@ configuration = cfbd.Configuration(
 
 # Enter a context with an instance of the API client
 with cfbd.ApiClient(configuration) as api_client:
-    # Create an instance of the API class
-    api_instance = cfbd.BettingApi(api_client)
-    year = 2025 # int | Optional year filter (optional)
-    week = 13
+    lines_instance = cfbd.BettingApi(api_client)
+    games_instance = cfbd.GamesApi(api_client)
+
+    year = 2024
+    season_type = cfbd.SeasonType("postseason")
+    classification = cfbd.DivisionClassification("fbs")
 
     try:
-        games_list = api_instance.get_lines(year=year, week=week)
+        lines_list = lines_instance.get_lines(year=year, season_type=season_type)
+        games_list = games_instance.get_games(year=year, season_type=season_type, classification=classification)
+
+        # ---- ADD THIS PART HERE ----
+        # Build lookup dict: game_id -> game metadata
+        games_by_id = {g.id: g for g in games_list}
+        # ----------------------------
+
         with app.app_context():
-            for g in games_list:
+            for g in lines_list:
+
+                # metadata for this game, if available
+                meta = games_by_id.get(g.id)
+                title = meta.notes if meta else None
+
                 existing = Game.query.filter_by(
                     home_team=g.home_team,
                     away_team=g.away_team
                 ).first()
+
+                spread = g.lines[0].spread if len(g.lines) > 0 else 0
+
                 if existing:
-                    existing.line = line=g.lines[0].spread
-                else:
-                    if len(g.lines) > 0:
-                        game = Game(
-                            home_team=g.home_team,
-                            away_team=g.away_team,
-                            line=g.lines[0].spread
-                        )
-                    else:
-                        game = Game(
-                                home_team=g.home_team,
-                                away_team=g.away_team,
-                                line=0
-                            )
+                    existing.line = spread
+                    existing.home_score = g.home_score
+                    existing.away_score = g.away_score
+                    existing.completed = meta.completed
+                elif meta:
+                    game = Game(
+                        id=g.id,
+                        home_team=g.home_team,
+                        away_team=g.away_team,
+                        home_id=meta.home_id,
+                        away_id=meta.away_id,
+                        home_score=g.home_score,
+                        away_score=g.away_score,
+                        title=title,
+                        line=spread,
+                        completed=meta.completed,
+                        start_date=meta.start_date,
+                        point_value=2,
+                        is_playoff="Playoff" in title
+                    )
                     db.session.add(game)
+
             db.session.commit()
+
         print(f"Updated DB with {len(games_list)} games for {year}!")
+
     except ApiException as e:
-        print("Exception when calling AdjustedMetricsApi->get_adjusted_player_passing_stats: %s\n" % e)
+        print("Exception when calling the API: %s\n" % e)

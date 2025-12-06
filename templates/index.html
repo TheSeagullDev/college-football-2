@@ -1,11 +1,8 @@
-<!DOCTYPE html>
-<html>
-  <body>
-    <h1>College Football Games</h1>
-    <ul>
-      {% for game in games %}
-        <li>{{ game.home_team }} vs {{ game.away_team }} - Line: {{ game.line }}</li>
-      {% endfor %}
-    </ul>
-  </body>
-</html>
+{% extends "base.html" %}
+
+{% block content %}
+<h1>College Football Games</h1>
+{% if user %}
+<h2>Hello, {{ user.name }}!</h2>
+{% endif %}
+{% endblock %}

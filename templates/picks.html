@@ -1,0 +1,103 @@
+{% extends "base.html" %} {% block content %}
+<script>
+	async function savePick(gameId, pick) {
+		const res = await fetch("/api/save_pick", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				game_id: gameId,
+				pick: pick,
+			}),
+		});
+	}
+</script>
+
+<style>
+	.pick-wrapper {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1rem;
+	}
+
+	.pick-btn {
+		width: 100%;
+		padding: 1rem;
+		display: flex;
+		align-items: center;
+		justify-content: space-between; /* pushes text left, logo right */
+		gap: 1rem;
+		text-align: left;
+	}
+
+	.pick-btn .text-block {
+		display: flex;
+		flex-direction: column;
+		line-height: 1.2;
+	}
+
+	.pick-btn img {
+		width: 60px;
+		height: 60px;
+		object-fit: contain;
+	}
+</style>
+
+<h1 class="mb-4">Picks</h1>
+
+{% for game in games %}
+<div class="card w-100 mb-4 shadow-sm">
+	<div class="card-body">
+		<h4 class="card-title mb-3">{{ game.title }}</h4>
+
+		<div class="pick-wrapper">
+			<!-- Home -->
+			<input type="radio" class="btn-check" name="pick_{{ game.id }}"
+			id="pick_{{ game.id }}_home" autocomplete="off" value="{{
+			game.home_team }}" {% if user_picks.get(game.id) == game.home_team
+			%}checked{% endif %} onchange="savePick({{ game.id }}, '{{
+			game.home_team }}')" >
+			<label
+				class="btn btn-outline-primary pick-btn"
+				for="pick_{{ game.id }}_home"
+			>
+				<div class="text-block">
+					<strong>{{ game.home_team }}</strong>
+					<span>
+						{% if game.line > 0 %} {{ game.line }} point underdog {%
+						else %} {{ game.line * -1 }} point favorite {% endif %}
+					</span>
+				</div>
+				<img
+					src="http://a.espncdn.com/i/teamlogos/ncaa/500/{{game.home_id}}.png"
+				/>
+			</label>
+
+			<!-- Away -->
+			<input type="radio" class="btn-check" name="pick_{{ game.id }}"
+			id="pick_{{ game.id }}_away" autocomplete="off" value="{{
+			game.away_team }}" {% if user_picks.get(game.id) == game.away_team
+			%}checked{% endif %} onchange="savePick({{ game.id }}, '{{
+			game.away_team }}')" >
+			<label
+				class="btn btn-outline-primary pick-btn"
+				for="pick_{{ game.id }}_away"
+			>
+				<div class="text-block">
+					<strong>{{ game.away_team }}</strong>
+					<span>
+						{% if game.line < 0 %} {{ game.line * -1 }} point
+						underdog {% else %} {{ game.line }} point favorite {%
+						endif %}
+					</span>
+				</div>
+				<img
+					src="http://a.espncdn.com/i/teamlogos/ncaa/500/{{game.away_id}}.png"
+				/>
+			</label>
+		</div>
+	</div>
+</div>
+{% endfor %}
+{% endblock %}
