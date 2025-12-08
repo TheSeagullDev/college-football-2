@@ -1,0 +1,6 @@
+cfbd==5.13.2
+Flask==3.1.2
+flask_sqlalchemy==3.1.1
+python-dotenv==1.2.1
+resend==2.19.0
+Werkzeug==3.1.4
