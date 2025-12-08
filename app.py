@@ -16,7 +16,7 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3')
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-app.secret_key = "CHANGE_THIS"
+app.secret_key = os.environ.get("SECRET_KEY")
 
 resend.api_key = os.environ.get("RESEND_API_KEY")
 
@@ -372,7 +372,15 @@ def register():
 @app.route("/")
 def index():
     user = User.query.filter_by(id=session.get("user_id")).first()
-    return render_template("index.html", user=user)
+    if user:
+        picks = len(Pick.query.filter_by(user_id=user.id).all())
+        playoff_picks = len(PlayoffPick.query.filter_by(user_id=user.id).all())
+        PLAYOFF_GAMES = 11
+        pick_count = picks + playoff_picks
+        total_available = len(Game.query.filter_by(is_playoff=False).all()) + PLAYOFF_GAMES
+        return render_template("index.html", user=user, pick_count=pick_count, total_available=total_available)
+    else:
+        return render_template("index.html", user=user)
 
 @app.route("/picks")
 @login_required
