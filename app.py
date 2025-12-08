@@ -200,7 +200,7 @@ def create_magic_link(email):
     db.session.add(record)
     db.session.commit()
 
-    return f"http://127.0.0.1:5000/verify?token={token}"
+    return f"https://football.noahsiegel.dev/verify?token={token}"
 
 def send_magic_link(email):
     url = create_magic_link(email)
