@@ -145,33 +145,52 @@
 {% for pg in playoff_games %}
 <div class="card w-100 mb-4 shadow-sm">
 	<div class="card-body">
-		<h4>{{ pg.name }} - Round {{ pg.round }}</h4>
+		<h4 class="card-title mb-3">{{ pg.name }}</h4>
 
 		{% set t1 = bracket[pg.id]["team1"] %} {% set t2 =
 		bracket[pg.id]["team2"] %} {% if pg.bye_team_id %}
-		<p>{{ pg.bye_team.name }} has a bye</p>
+		<p>
+			{{ teams[pg.bye_team_id].seed }}. {{ teams[pg.bye_team_id].name }}
+			has a bye
+		</p>
 		{% endif %} {% if t1 and t2 %}
 		<div class="pick-wrapper">
+			<!-- Slot 1 -->
 			<input type="radio" class="btn-check" name="ppick_{{ pg.id }}"
-			id="ppick_{{ pg.id }}_1" value="{{ t1 }}" {% if
+			id="ppick_{{ pg.id }}_1" autocomplete="off" value="{{ t1 }}" {% if
 			user_playoff.get(pg.id) == t1 %}checked{% endif %}
-			onchange="savePlayoffPick({{ pg.id }}, {{ t1 }})">
-
-			<label class="btn btn-outline-primary" for="ppick_{{ pg.id }}_1">
-				{{ teams[t1].name }}
+			onchange="savePlayoffPick({{ pg.id }}, {{ t1 }})" >
+			<label
+				class="btn btn-outline-primary pick-btn"
+				for="ppick_{{ pg.id }}_1"
+			>
+				<div class="text-block">
+					<strong>{{ teams[t1].seed }}. {{ teams[t1].name }}</strong>
+				</div>
+				<img
+					src="http://a.espncdn.com/i/teamlogos/ncaa/500/{{teams[t1].espn_id}}.png"
+				/>
 			</label>
 
+			<!-- Slot 2 -->
 			<input type="radio" class="btn-check" name="ppick_{{ pg.id }}"
-			id="ppick_{{ pg.id }}_2" value="{{ t2 }}" {% if
+			id="ppick_{{ pg.id }}_2" autocomplete="off" value="{{ t2 }}" {% if
 			user_playoff.get(pg.id) == t2 %}checked{% endif %}
-			onchange="savePlayoffPick({{ pg.id }}, {{ t2 }})">
-
-			<label class="btn btn-outline-primary" for="ppick_{{ pg.id }}_2">
-				{{ teams[t2].name }}
+			onchange="savePlayoffPick({{ pg.id }}, {{ t2 }})" >
+			<label
+				class="btn btn-outline-primary pick-btn"
+				for="ppick_{{ pg.id }}_2"
+			>
+				<div class="text-block">
+					<strong>{{ teams[t2].seed }}. {{ teams[t2].name }}</strong>
+				</div>
+				<img
+					src="http://a.espncdn.com/i/teamlogos/ncaa/500/{{teams[t2].espn_id}}.png"
+				/>
 			</label>
 		</div>
 		{% else %}
-		<p>Matchup TBD based on previous round</p>
+		<p class="text-muted">Matchup TBD based on previous round</p>
 		{% endif %}
 	</div>
 </div>

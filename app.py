@@ -43,6 +43,7 @@ class Team(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String, nullable=False)
     seed = db.Column(db.Integer, nullable=True)
+    espn_id = db.Column(db.Integer)
 
 class PlayoffGame(db.Model):
     __tablename__ = "playoff_games"
@@ -80,6 +81,7 @@ class PlayoffPick(db.Model):
     user_id = db.Column(db.Integer, nullable=False)
     playoff_game_id = db.Column(db.Integer, db.ForeignKey("playoff_games.id"), nullable=False)
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=False)
+    team = db.relationship("Team", foreign_keys=[team_id])
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -121,27 +123,69 @@ class MagicLinkToken(db.Model):
 
 def update_scores():
     with app.app_context():
-        picks = Pick.query.filter_by().all()
-
+        # RESET
         db.session.query(User).update({User.score: 0})
         db.session.commit()
 
-
+        # ---------- REGULAR SEASON ----------
+        picks = Pick.query.all()
         for pick in picks:
-            if pick.game.completed:
-                user = User.query.filter_by(id=pick.user_id).first()
-                home = pick.game.home_score
-                away = pick.game.away_score
-                diff = home - away + pick.game.line
-                if diff > 0:
-                    winner = pick.game.home_team
-                elif diff < 0:
-                    winner = pick.game.away_team
-                else:
-                    winner = "push"
-                if pick.chosen_team == winner:
-                    user.score += pick.game.point_value
-                    db.session.commit()
+            g = pick.game
+            if not g.completed:
+                continue
+
+            user = User.query.get(pick.user_id)
+
+            home = g.home_score
+            away = g.away_score
+            diff = home - away + g.line
+
+            if diff > 0:
+                winner = g.home_team
+            elif diff < 0:
+                winner = g.away_team
+            else:
+                winner = "push"
+
+            if pick.chosen_team == winner:
+                user.score += g.point_value
+                db.session.add(user)
+
+        db.session.commit()
+
+        # ---------- PLAYOFFS ----------
+        playoff_picks = PlayoffPick.query.all()
+
+        for pp in playoff_picks:
+            pg = PlayoffGame.query.get(pp.playoff_game_id)
+            user = User.query.get(pp.user_id)
+
+            if not pg.espn_id:
+                continue
+
+            real_game = Game.query.filter_by(id=pg.espn_id).first()
+            if not real_game or not real_game.completed:
+                continue
+
+            # STRAIGHT WINNER (NO SPREAD)
+            home = real_game.home_score
+            away = real_game.away_score
+
+            if home > away:
+                real_winner = real_game.home_team
+            elif away > home:
+                real_winner = real_game.away_team
+            else:
+                real_winner = "push"
+
+            # multiplier: 2 × round
+            round_points = 2 * pg.round
+            if pp.team.name == real_winner:
+                user.score += round_points
+                db.session.add(user)
+
+        db.session.commit()
+
 
 def create_magic_link(email):
     token = os.urandom(32).hex()
@@ -405,19 +449,6 @@ def save_playoff_pick():
     db.session.commit()
 
     return {"success": True}
-
-
-@app.route("/playoff/bracket_state")
-@login_required
-def bracket_state():
-    playoff_games = PlayoffGame.query.order_by(PlayoffGame.round).all()
-    playoff_picks = PlayoffPick.query.filter_by(user_id=session["user_id"]).all()
-    user_playoff = {p.playoff_game_id: p.team_id for p in playoff_picks}
-
-    bracket = build_predicted_bracket(playoff_games, user_playoff)
-
-    return bracket  # or jsonify(bracket)
-
 
 
 @app.route("/standings")
