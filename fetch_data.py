@@ -29,7 +29,7 @@ with cfbd.ApiClient(configuration) as api_client:
     lines_instance = cfbd.BettingApi(api_client)
     games_instance = cfbd.GamesApi(api_client)
 
-    year = 2024
+    year = 2025
     season_type = cfbd.SeasonType("postseason")
     classification = cfbd.DivisionClassification("fbs")
 

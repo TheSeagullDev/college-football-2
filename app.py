@@ -1,8 +1,14 @@
-from flask import Flask, render_template, request, session, redirect, url_for, flash
-import os
+from flask import Flask, render_template, request, session, redirect, url_for, flash, jsonify
+import os, hashlib
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
+import resend
+
+
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -11,6 +17,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(BASE_DIR, 'd
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 app.secret_key = "CHANGE_THIS"
+
+resend.api_key = os.environ.get("RESEND_API_KEY")
 
 db = SQLAlchemy(app)
 
@@ -28,6 +36,50 @@ class Game(db.Model):
     start_date = db.Column(db.DateTime(timezone=True))
     completed = db.Column(db.Boolean, default=False)
     is_playoff = db.Column(db.Boolean, default=False)
+
+class Team(db.Model):
+    __tablename__ = "teams"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, nullable=False)
+    seed = db.Column(db.Integer, nullable=True)
+
+class PlayoffGame(db.Model):
+    __tablename__ = "playoff_games"
+
+    id = db.Column(db.Integer, primary_key=True)
+    round = db.Column(db.Integer, nullable=False)
+    name = db.Column(db.String, nullable=False)  # e.g. "Quarterfinal 1"
+    
+    # these reference earlier games; null if it's round 1
+    depends_on_game1 = db.Column(db.Integer, db.ForeignKey("playoff_games.id"), nullable=True)
+    depends_on_game2 = db.Column(db.Integer, db.ForeignKey("playoff_games.id"), nullable=True)
+
+    team1_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=True)
+    team2_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=True)
+
+    # if there's a bye, that team fills slot 1 automatically
+    bye_team_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=True)
+
+    # ESPN ID set manually once matchup exists IRL
+    espn_id = db.Column(db.String, nullable=True)
+
+    final_score_team1 = db.Column(db.Integer, nullable=True)
+    final_score_team2 = db.Column(db.Integer, nullable=True)
+    winner_team_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=True)
+
+    team1 = db.relationship("Team", foreign_keys=[team1_id])
+    team2 = db.relationship("Team", foreign_keys=[team2_id])
+    bye_team = db.relationship("Team", foreign_keys=[bye_team_id])
+    winner = db.relationship("Team", foreign_keys=[winner_team_id])
+
+class PlayoffPick(db.Model):
+    __tablename__ = "playoff_picks"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    playoff_game_id = db.Column(db.Integer, db.ForeignKey("playoff_games.id"), nullable=False)
+    team_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=False)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -61,6 +113,12 @@ class Pick(db.Model):
     # game relationship (so "pick.game" works)
     game = db.relationship("Game", backref="picks", lazy=True)
 
+class MagicLinkToken(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_email = db.Column(db.String(255), nullable=False)
+    token_hash = db.Column(db.String(255), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+
 def update_scores():
     with app.app_context():
         picks = Pick.query.filter_by().all()
@@ -84,6 +142,67 @@ def update_scores():
                 if pick.chosen_team == winner:
                     user.score += pick.game.point_value
                     db.session.commit()
+
+def create_magic_link(email):
+    token = os.urandom(32).hex()
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+    record = MagicLinkToken(
+        user_email=email,
+        token_hash=token_hash,
+        expires_at=datetime.utcnow() + timedelta(minutes=15)
+    )
+
+    db.session.add(record)
+    db.session.commit()
+
+    return f"http://127.0.0.1:5000/verify?token={token}"
+
+def send_magic_link(email):
+    url = create_magic_link(email)
+
+    params: resend.Emails.SendParams = {
+        "from": "College Football <login@football.noahsiegel.dev>",
+        "to": email,
+        "subject": "Login Link",
+        "html": f'<p><a href="{url}">Click to log in</a><br>Expires in 15 minutes.</p>'
+    }
+
+    email = resend.Emails.send(params)
+
+def build_predicted_bracket(playoff_games, user_playoff):
+    bracket = {}  # maps pg.id → {team1, team2}
+
+    # start them all as what's currently known
+    for pg in playoff_games:
+        bracket[pg.id] = {
+            "team1": pg.team1_id or pg.bye_team_id,
+            "team2": pg.team2_id
+        }
+
+    # now fill forward based on user picks
+    changed = True
+    while changed:
+        changed = False
+        for pg in playoff_games:
+            pick = user_playoff.get(pg.id)
+            if not pick:
+                continue
+
+            # find future games that depend on this game
+            for next_pg in playoff_games:
+                if next_pg.depends_on_game1 == pg.id:
+                    if bracket[next_pg.id]["team1"] != pick:
+                        bracket[next_pg.id]["team1"] = pick
+                        changed = True
+
+                if next_pg.depends_on_game2 == pg.id:
+                    if bracket[next_pg.id]["team2"] != pick:
+                        bracket[next_pg.id]["team2"] = pick
+                        changed = True
+
+    return bracket
+
 
 
 def login_required(f):
@@ -109,6 +228,38 @@ def login():
         return "Invalid credentials", 401
 
     return render_template("login.html")
+
+@app.route("/request", methods=["GET", "POST"])
+def request_login():
+    if request.method == "POST":
+        email = request.form.get("email")
+
+        # Always respond the same — don’t leak who exists
+        send_magic_link(email)
+        return "If that email exists, a link was sent."
+    else:
+        return render_template("passwordless.html")
+
+
+@app.route("/verify")
+def verify_login():
+    raw = request.args.get("token")
+    token_hash = hashlib.sha256(raw.encode()).hexdigest()
+
+    record = MagicLinkToken.query.filter_by(token_hash=token_hash).first()
+
+    if not record or record.expires_at < datetime.utcnow():
+        return "Invalid or expired", 400
+
+    # Log in user
+    user = User.query.filter_by(email=record.user_email).first()
+    session["user_id"] = user.id
+
+    # One-time use — delete token
+    db.session.delete(record)
+    db.session.commit()
+
+    return redirect("/")
 
 @app.route("/logout")
 def logout():
@@ -157,13 +308,34 @@ def index():
 @app.route("/picks")
 @login_required
 def picks():
-    user_id = session.get("user_id")
-    user = User.query.filter_by(id=user_id).first()
+    user_id = session["user_id"]
 
-    games = Game.query.order_by(Game.is_playoff.asc(), Game.start_date.asc()).all()
+    # base games
+    games = Game.query.filter_by(is_playoff=False).all()
     picks = Pick.query.filter_by(user_id=user_id).all()
     user_picks = {p.game_id: p.chosen_team for p in picks}
-    return render_template("picks.html", games=games, user_picks=user_picks)
+
+    # playoff data
+    playoff_games = PlayoffGame.query.order_by(PlayoffGame.round).all()
+    playoff_picks = PlayoffPick.query.filter_by(user_id=user_id).all()
+    user_playoff = {p.playoff_game_id: p.team_id for p in playoff_picks}
+
+    # build propagated bracket
+    bracket = build_predicted_bracket(playoff_games, user_playoff)
+
+    teams = {t.id: t for t in Team.query.all()}
+
+    return render_template(
+        "picks.html",
+        games=games,
+        user_picks=user_picks,
+        playoff_games=playoff_games,
+        user_playoff=user_playoff,
+        bracket=bracket,
+        teams=teams
+    )
+
+
 
 @app.route("/api/save_pick", methods=["POST"])
 @login_required
@@ -193,6 +365,39 @@ def save_pick():
     db.session.commit()
     return {"status": "ok"}
 
+@app.route("/api/save_playoff_pick", methods=["POST"])
+@login_required
+def save_playoff_pick():
+    data = request.get_json()
+    user_id = session["user_id"]
+    playoff_game_id = data["playoff_game_id"]
+    team_id = data["team_id"]
+
+    pick = PlayoffPick.query.filter_by(user_id=user_id, playoff_game_id=playoff_game_id).first()
+
+    if not pick:
+        pick = PlayoffPick(user_id=user_id, playoff_game_id=playoff_game_id)
+
+    pick.team_id = team_id
+    db.session.add(pick)
+    db.session.commit()
+
+    return {"success": True}
+
+
+@app.route("/playoff/bracket_state")
+@login_required
+def bracket_state():
+    playoff_games = PlayoffGame.query.order_by(PlayoffGame.round).all()
+    playoff_picks = PlayoffPick.query.filter_by(user_id=session["user_id"]).all()
+    user_playoff = {p.playoff_game_id: p.team_id for p in playoff_picks}
+
+    bracket = build_predicted_bracket(playoff_games, user_playoff)
+
+    return bracket  # or jsonify(bracket)
+
+
+
 @app.route("/standings")
 def standings():
     update_scores()
@@ -220,7 +425,6 @@ def standings():
         })
 
     return render_template("standings.html", leaderboard=leaderboard)
-
 
 if __name__ == "__main__":
     with app.app_context():
