@@ -205,11 +205,27 @@ def create_magic_link(email):
 def send_magic_link(email):
     url = create_magic_link(email)
 
+    magic_link_email_html = """\
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: Arial, sans-serif; background-color:#f4f4f4; margin:0; padding:0;">
+        <div style="max-width:600px; margin:40px auto; background:#fff; padding:20px; border-radius:8px;">
+        <h2 style="color:#333;">Your Magic Login Link</h2>
+        <p style="color:#555;">Hello,</p>
+        <p style="color:#555;">Click the button below to log in to your account. This link will expire shortly and can only be used once:</p>
+        <p><a href="{url}" style="display:inline-block; padding:12px 20px; background:#007BFF; color:#fff; text-decoration:none; border-radius:5px;">Log In</a></p>
+        <p style="color:#555;">If you did not request this login link, you can safely ignore this email.</p>
+        </div>
+    </body>
+    </html>
+    """
+
+
     params: resend.Emails.SendParams = {
         "from": "College Football <login@football.noahsiegel.dev>",
         "to": email,
         "subject": "Login Link",
-        "html": f'<p><a href="{url}">Click to log in</a><br>Expires in 15 minutes.</p>'
+        "html": magic_link_email_html.format(url=url)
     }
 
     email = resend.Emails.send(params)
