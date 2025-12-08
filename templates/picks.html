@@ -154,9 +154,8 @@
 		<div class="pick-wrapper">
 			<input type="radio" class="btn-check" name="ppick_{{ pg.id }}"
 			id="ppick_{{ pg.id }}_1" value="{{ t1 }}" {% if
-			user_playoff.get(pg.id) == t1 and user_playoff.get(pg.id) in (t1,
-			t2) %}checked{% endif %} onchange="savePlayoffPick({{ pg.id }}, {{
-			t1 }})">
+			user_playoff.get(pg.id) == t1 %}checked{% endif %}
+			onchange="savePlayoffPick({{ pg.id }}, {{ t1 }})">
 
 			<label class="btn btn-outline-primary" for="ppick_{{ pg.id }}_1">
 				{{ teams[t1].name }}
@@ -164,9 +163,8 @@
 
 			<input type="radio" class="btn-check" name="ppick_{{ pg.id }}"
 			id="ppick_{{ pg.id }}_2" value="{{ t2 }}" {% if
-			user_playoff.get(pg.id) == t2 and user_playoff.get(pg.id) in (t1,
-			t2) %}checked{% endif %} onchange="savePlayoffPick({{ pg.id }}, {{
-			t2 }})">
+			user_playoff.get(pg.id) == t2 %}checked{% endif %}
+			onchange="savePlayoffPick({{ pg.id }}, {{ t2 }})">
 
 			<label class="btn btn-outline-primary" for="ppick_{{ pg.id }}_2">
 				{{ teams[t2].name }}

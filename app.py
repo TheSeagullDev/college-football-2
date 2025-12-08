@@ -170,53 +170,64 @@ def send_magic_link(email):
 
     email = resend.Emails.send(params)
 
-def build_predicted_bracket(playoff_games, user_playoff):
-    # 1. seed bracket
-    bracket = {
-        pg.id: {
-            "team1": pg.team1_id or pg.bye_team_id,
-            "team2": pg.team2_id
-        }
-        for pg in playoff_games
-    }
+# returns bracket dict and visible picks dict in one deterministic pass
+def build_bracket_and_visible_playoff(playoff_games, user_playoff):
+    """
+    Args:
+      playoff_games: list of PlayoffGame ordered by round asc (PlayoffGame.query.order_by(...).all())
+      user_playoff: dict mapping playoff_game_id -> team_id (DB picks)
+    Returns:
+      bracket: { pg_id: {"team1": id or None, "team2": id or None} }
+      visible_playoff: { pg_id: team_id or None }  # what template should render as picked
+    """
 
-    changed = True
-    while changed:
-        changed = False
+    # map games by id for quick lookup
+    games_by_id = {pg.id: pg for pg in playoff_games}
 
-        for pg in playoff_games:
-            pick = user_playoff.get(pg.id)
+    # initialize bracket with DB-provided teams (round 1) or Nones
+    bracket = {}
+    visible_playoff = {}
 
-            if pick:
-                # propagate forward
-                for next_pg in playoff_games:
-                    # feed winner to spot 1
-                    if next_pg.depends_on_game1 == pg.id:
-                        if bracket[next_pg.id]["team1"] != pick:
-                            bracket[next_pg.id]["team1"] = pick
-                            changed = True
+    # ensure playoff_games are processed in round order (and predictable within a round)
+    # If your query didn't already order by round and id, do it here
+    playoff_games_sorted = sorted(playoff_games, key=lambda g: (g.round, g.id))
 
-                    # feed winner to spot 2
-                    if next_pg.depends_on_game2 == pg.id:
-                        if bracket[next_pg.id]["team2"] != pick:
-                            bracket[next_pg.id]["team2"] = pick
-                            changed = True
+    for pg in playoff_games_sorted:
+        # default from DB columns
+        t1 = pg.team1_id
+        t2 = pg.team2_id
 
-        # 2. do NOT delete picks
-        # instead invalidate them logically if they don't match bracket
-        for pg in playoff_games:
-            pick = user_playoff.get(pg.id)
-            if pick:
-                t1 = bracket[pg.id]["team1"]
-                t2 = bracket[pg.id]["team2"]
+        # if the game depends on earlier games, derive the slot(s) from visible winners
+        if pg.depends_on_game1:
+            # winner of depends_on_game1 is whatever visible_pick was stored for that game
+            t1 = visible_playoff.get(pg.depends_on_game1) or None
+        if pg.depends_on_game2:
+            t2 = visible_playoff.get(pg.depends_on_game2) or None
 
-                if pick not in (t1, t2):
-                    # don't mutate dict, just mark mismatch
-                    # actual delete happens only when commit to DB on change
-                    user_playoff[pg.id] = None
-                    changed = True
+        # if there's a bye and no explicit team1, use bye
+        if (not t1) and pg.bye_team_id:
+            t1 = pg.bye_team_id
 
-    return bracket
+        bracket[pg.id] = {"team1": t1, "team2": t2}
+
+        # decide what pick should be visible (i.e., is it still valid?)
+        db_pick = user_playoff.get(pg.id)  # maybe None
+
+        if db_pick and db_pick in (t1, t2):
+            # valid — show the user's pick
+            visible_playoff[pg.id] = db_pick
+        else:
+            # invalid or missing — nothing should be checked
+            visible_playoff[pg.id] = None
+
+        # IMPORTANT: visible_playoff[pg.id] represents that game's winner for downstream games
+        # For downstream rounds, the "winner" slot is the user's pick if present, otherwise None.
+        # If you want to treat an unpicked but single-team game as auto-advance, change logic above.
+        # (currently we only advance what's visible)
+        # If you want auto-advance for byes: visible_playoff will already be pg.bye_team_id above
+    return bracket, visible_playoff
+
+
 
 
 def login_required(f):
@@ -324,18 +335,15 @@ def index():
 def picks():
     user_id = session["user_id"]
 
-    # base games
     games = Game.query.filter_by(is_playoff=False).all()
     picks = Pick.query.filter_by(user_id=user_id).all()
     user_picks = {p.game_id: p.chosen_team for p in picks}
 
-    # playoff data
-    playoff_games = PlayoffGame.query.order_by(PlayoffGame.round).all()
+    playoff_games = PlayoffGame.query.order_by(PlayoffGame.round, PlayoffGame.id).all()
     playoff_picks = PlayoffPick.query.filter_by(user_id=user_id).all()
     user_playoff = {p.playoff_game_id: p.team_id for p in playoff_picks}
 
-    # build propagated bracket
-    bracket = build_predicted_bracket(playoff_games, user_playoff)
+    bracket, visible_playoff = build_bracket_and_visible_playoff(playoff_games, user_playoff)
 
     teams = {t.id: t for t in Team.query.all()}
 
@@ -344,7 +352,7 @@ def picks():
         games=games,
         user_picks=user_picks,
         playoff_games=playoff_games,
-        user_playoff=user_playoff,
+        user_playoff=visible_playoff,   # make template use this name
         bracket=bracket,
         teams=teams
     )
