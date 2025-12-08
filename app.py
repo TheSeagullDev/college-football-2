@@ -414,16 +414,25 @@ def picks():
     bracket, visible_playoff = build_bracket_and_visible_playoff(playoff_games, user_playoff)
 
     teams = {t.id: t for t in Team.query.all()}
-
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return render_template(
+            "picks_inner.html",
+            games=games,
+            user_picks=user_picks,
+            playoff_games=playoff_games,
+            user_playoff=visible_playoff,   # make template use this name
+            bracket=bracket,
+            teams=teams
+        )
     return render_template(
-        "picks.html",
-        games=games,
-        user_picks=user_picks,
-        playoff_games=playoff_games,
-        user_playoff=visible_playoff,   # make template use this name
-        bracket=bracket,
-        teams=teams
-    )
+            "picks.html",
+            games=games,
+            user_picks=user_picks,
+            playoff_games=playoff_games,
+            user_playoff=visible_playoff,   # make template use this name
+            bracket=bracket,
+            teams=teams
+        )
 
 
 
