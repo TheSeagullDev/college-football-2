@@ -171,38 +171,52 @@ def send_magic_link(email):
     email = resend.Emails.send(params)
 
 def build_predicted_bracket(playoff_games, user_playoff):
-    bracket = {}  # maps pg.id → {team1, team2}
-
-    # start them all as what's currently known
-    for pg in playoff_games:
-        bracket[pg.id] = {
+    # 1. seed bracket
+    bracket = {
+        pg.id: {
             "team1": pg.team1_id or pg.bye_team_id,
             "team2": pg.team2_id
         }
+        for pg in playoff_games
+    }
 
-    # now fill forward based on user picks
     changed = True
     while changed:
         changed = False
+
         for pg in playoff_games:
             pick = user_playoff.get(pg.id)
-            if not pick:
-                continue
 
-            # find future games that depend on this game
-            for next_pg in playoff_games:
-                if next_pg.depends_on_game1 == pg.id:
-                    if bracket[next_pg.id]["team1"] != pick:
-                        bracket[next_pg.id]["team1"] = pick
-                        changed = True
+            if pick:
+                # propagate forward
+                for next_pg in playoff_games:
+                    # feed winner to spot 1
+                    if next_pg.depends_on_game1 == pg.id:
+                        if bracket[next_pg.id]["team1"] != pick:
+                            bracket[next_pg.id]["team1"] = pick
+                            changed = True
 
-                if next_pg.depends_on_game2 == pg.id:
-                    if bracket[next_pg.id]["team2"] != pick:
-                        bracket[next_pg.id]["team2"] = pick
-                        changed = True
+                    # feed winner to spot 2
+                    if next_pg.depends_on_game2 == pg.id:
+                        if bracket[next_pg.id]["team2"] != pick:
+                            bracket[next_pg.id]["team2"] = pick
+                            changed = True
+
+        # 2. do NOT delete picks
+        # instead invalidate them logically if they don't match bracket
+        for pg in playoff_games:
+            pick = user_playoff.get(pg.id)
+            if pick:
+                t1 = bracket[pg.id]["team1"]
+                t2 = bracket[pg.id]["team2"]
+
+                if pick not in (t1, t2):
+                    # don't mutate dict, just mark mismatch
+                    # actual delete happens only when commit to DB on change
+                    user_playoff[pg.id] = None
+                    changed = True
 
     return bracket
-
 
 
 def login_required(f):

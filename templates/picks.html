@@ -147,37 +147,28 @@
 	<div class="card-body">
 		<h4>{{ pg.name }} - Round {{ pg.round }}</h4>
 
-		{% set t1 = bracket[pg.id]["team1"] %}
-		{% set t2 = bracket[pg.id]["team2"] %}
-
-		{% if pg.bye_team_id %}
+		{% set t1 = bracket[pg.id]["team1"] %} {% set t2 =
+		bracket[pg.id]["team2"] %} {% if pg.bye_team_id %}
 		<p>{{ pg.bye_team.name }} has a bye</p>
-		{% endif %}
-
-		{% if t1 and t2 %}
+		{% endif %} {% if t1 and t2 %}
 		<div class="pick-wrapper">
+			<input type="radio" class="btn-check" name="ppick_{{ pg.id }}"
+			id="ppick_{{ pg.id }}_1" value="{{ t1 }}" {% if
+			user_playoff.get(pg.id) == t1 and user_playoff.get(pg.id) in (t1,
+			t2) %}checked{% endif %} onchange="savePlayoffPick({{ pg.id }}, {{
+			t1 }})">
 
-			<input type="radio" class="btn-check"
-			       name="ppick_{{ pg.id }}"
-			       id="ppick_{{ pg.id }}_1"
-			       value="{{ t1 }}"
-			       {% if user_playoff.get(pg.id) == t1 %}checked{% endif %}
-			       onchange="savePlayoffPick({{ pg.id }}, {{ t1 }})">
-
-			<label class="btn btn-outline-primary"
-			       for="ppick_{{ pg.id }}_1">
+			<label class="btn btn-outline-primary" for="ppick_{{ pg.id }}_1">
 				{{ teams[t1].name }}
 			</label>
 
-			<input type="radio" class="btn-check"
-			       name="ppick_{{ pg.id }}"
-			       id="ppick_{{ pg.id }}_2"
-			       value="{{ t2 }}"
-			       {% if user_playoff.get(pg.id) == t2 %}checked{% endif %}
-			       onchange="savePlayoffPick({{ pg.id }}, {{ t2 }})">
+			<input type="radio" class="btn-check" name="ppick_{{ pg.id }}"
+			id="ppick_{{ pg.id }}_2" value="{{ t2 }}" {% if
+			user_playoff.get(pg.id) == t2 and user_playoff.get(pg.id) in (t1,
+			t2) %}checked{% endif %} onchange="savePlayoffPick({{ pg.id }}, {{
+			t2 }})">
 
-			<label class="btn btn-outline-primary"
-			       for="ppick_{{ pg.id }}_2">
+			<label class="btn btn-outline-primary" for="ppick_{{ pg.id }}_2">
 				{{ teams[t2].name }}
 			</label>
 		</div>
@@ -186,6 +177,4 @@
 		{% endif %}
 	</div>
 </div>
-{% endfor %}
-
- {% endblock %}
+{% endfor %} {% endblock %}
