@@ -322,7 +322,8 @@ def request_login():
 
         # Always respond the same — don’t leak who exists
         send_magic_link(email)
-        return "If that email exists, a link was sent."
+        flash("If that email exists, a link was sent.")
+        return redirect("/")
     else:
         return render_template("passwordless.html")
 
