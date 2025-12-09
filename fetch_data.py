@@ -50,8 +50,7 @@ with cfbd.ApiClient(configuration) as api_client:
                 title = meta.notes if meta else None
 
                 existing = Game.query.filter_by(
-                    home_team=g.home_team,
-                    away_team=g.away_team
+                    id=g.id
                 ).first()
 
                 spread = g.lines[0].spread if len(g.lines) > 0 else 0
