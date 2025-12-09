@@ -487,6 +487,7 @@ def save_playoff_pick():
 
 
 @app.route("/standings")
+@login_required
 def standings():
     update_scores()
     users = User.query.order_by(User.score.desc()).all()
