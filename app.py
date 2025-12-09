@@ -308,6 +308,7 @@ def login():
 
         if user and check_password_hash(user.password_hash, password):
             session["user_id"] = user.id
+            flash("Logged in successfully!")
             return redirect("/")  # or wherever
 
         return "Invalid credentials", 401
@@ -349,6 +350,7 @@ def verify_login():
 @app.route("/logout")
 def logout():
     session.pop("user_id", None)
+    flash("Logged out.")
     return redirect(url_for("index"))
 
 
@@ -362,13 +364,13 @@ def register():
 
             # basic validation
             if not email or not password:
-                flash("Bro… you need a email AND a password.")
+                flash("Please enter a email and a passowrd")
                 return redirect("/register")
 
             # check if user exists
             existing = User.query.filter_by(email=email).first()
             if existing:
-                flash("email already taken.")
+                flash("Email already taken.")
                 return redirect("/register")
 
             # create user
@@ -379,7 +381,7 @@ def register():
             # log them in immediately
             session["user_id"] = user.id
 
-            flash("Welcome aboard.")
+            flash("Welcome!")
             return redirect("/")
     else:
         return redirect("/")
@@ -511,6 +513,24 @@ def standings():
         })
 
     return render_template("standings.html", leaderboard=leaderboard)
+
+@app.route("/help", methods=["GET", "POST"])
+def help():
+    if request.method == "POST":
+        email = request.form.get("email")
+        message = request.form.get("message")
+        params: resend.Emails.SendParams = {
+            "from": "College Football Help Request <help@football.noahsiegel.dev>",
+            "to": "njsiegel9@gmail.com",
+            "subject": "Help Request",
+            "html": f"Email: {email} Message: {message}"
+        }
+
+        email = resend.Emails.send(params)
+        flash("Message sent!")
+        return redirect("/")
+    else:
+        return render_template("help.html")
 
 if __name__ == "__main__":
     with app.app_context():

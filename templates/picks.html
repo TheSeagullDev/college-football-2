@@ -34,7 +34,7 @@
 		container.style.opacity = "0.25";
 
 		const res = await fetch("/picks", {
-			headers: { "X-Requested-With": "XMLHttpRequest" }
+			headers: { "X-Requested-With": "XMLHttpRequest" },
 		});
 
 		const html = await res.text();
@@ -56,6 +56,18 @@
 				input.disabled = expired;
 			});
 		});
+		document.querySelectorAll(".playoff").forEach((el) => {
+			const now = new Date();
+			const firstCFPGame = new Date(1766192400 * 1000); // Dec 19, 8PM EST in Unix timestamp (ms)
+			if (now > firstCFPGame) {
+				const card = el.closest(".card-body");
+				card.querySelectorAll(".pick-wrapper input").forEach(
+					(input) => {
+						input.disabled = true;
+					}
+				);
+			}
+		});
 	}
 
 	document.addEventListener("DOMContentLoaded", () => {
@@ -74,6 +86,18 @@
 			card.querySelectorAll(".pick-wrapper input").forEach((input) => {
 				input.disabled = expired;
 			});
+		});
+		document.querySelectorAll(".playoff").forEach((el) => {
+			const now = new Date();
+			const firstCFPGame = new Date(1766192400 * 1000); // Dec 19, 8PM EST in Unix timestamp (ms)
+			if (now > firstCFPGame) {
+				const card = el.closest(".card-body");
+				card.querySelectorAll(".pick-wrapper input").forEach(
+					(input) => {
+						input.disabled = true;
+					}
+				);
+			}
 		});
 	});
 </script>
@@ -115,20 +139,20 @@
 </style>
 
 <h1 class="mb-4">Picks</h1>
-<div id="picks-container">	
+<div id="picks-container">
 	{% for game in games %}
 	<div class="card w-100 mb-4 shadow-sm">
 		<div class="card-body">
 			<h4 class="card-title mb-3">{{ game.title }}</h4>
 			<h5 class="card-text utc">{{ game.start_date.isoformat() }}Z</h5>
-	
+
 			<div class="pick-wrapper">
 				<!-- Home -->
 				<input type="radio" class="btn-check" name="pick_{{ game.id }}"
 				id="pick_{{ game.id }}_home" autocomplete="off" value="{{
-				game.home_team }}" {% if user_picks.get(game.id) == game.home_team
-				%}checked{% endif %} onchange="savePick({{ game.id }}, '{{
-				game.home_team }}')" >
+				game.home_team }}" {% if user_picks.get(game.id) ==
+				game.home_team %}checked{% endif %} onchange="savePick({{
+				game.id }}, '{{ game.home_team }}')" >
 				<label
 					class="btn btn-outline-primary pick-btn"
 					for="pick_{{ game.id }}_home"
@@ -136,21 +160,22 @@
 					<div class="text-block">
 						<strong>{{ game.home_team }}</strong>
 						<span>
-							{% if game.line > 0 %} {{ game.line }} point underdog {%
-							else %} {{ game.line * -1 }} point favorite {% endif %}
+							{% if game.line > 0 %} {{ game.line }} point
+							underdog {% else %} {{ game.line * -1 }} point
+							favorite {% endif %}
 						</span>
 					</div>
 					<img
 						src="http://a.espncdn.com/i/teamlogos/ncaa/500/{{game.home_id}}.png"
 					/>
 				</label>
-	
+
 				<!-- Away -->
 				<input type="radio" class="btn-check" name="pick_{{ game.id }}"
 				id="pick_{{ game.id }}_away" autocomplete="off" value="{{
-				game.away_team }}" {% if user_picks.get(game.id) == game.away_team
-				%}checked{% endif %} onchange="savePick({{ game.id }}, '{{
-				game.away_team }}')" >
+				game.away_team }}" {% if user_picks.get(game.id) ==
+				game.away_team %}checked{% endif %} onchange="savePick({{
+				game.id }}, '{{ game.away_team }}')" >
 				<label
 					class="btn btn-outline-primary pick-btn"
 					for="pick_{{ game.id }}_away"
@@ -159,8 +184,8 @@
 						<strong>{{ game.away_team }}</strong>
 						<span>
 							{% if game.line < 0 %} {{ game.line * -1 }} point
-							underdog {% else %} {{ game.line }} point favorite {%
-							endif %}
+							underdog {% else %} {{ game.line }} point favorite
+							{% endif %}
 						</span>
 					</div>
 					<img
@@ -171,50 +196,54 @@
 		</div>
 	</div>
 	{% endfor %}
-	
+
 	<h2 class="mt-5">Playoff Picks</h2>
-	
+
 	{% for pg in playoff_games %}
 	<div class="card w-100 mb-4 shadow-sm">
 		<div class="card-body">
 			<h4 class="card-title mb-3">{{ pg.name }}</h4>
-	
+
 			{% set t1 = bracket[pg.id]["team1"] %} {% set t2 =
 			bracket[pg.id]["team2"] %} {% if pg.bye_team_id %}
 			<p>
-				{{ teams[pg.bye_team_id].seed }}. {{ teams[pg.bye_team_id].name }}
-				has a bye
+				{{ teams[pg.bye_team_id].seed }}. {{ teams[pg.bye_team_id].name
+				}} has a bye
 			</p>
 			{% endif %} {% if t1 and t2 %}
-			<div class="pick-wrapper">
+			<div class="pick-wrapper playoff">
 				<!-- Slot 1 -->
 				<input type="radio" class="btn-check" name="ppick_{{ pg.id }}"
-				id="ppick_{{ pg.id }}_1" autocomplete="off" value="{{ t1 }}" {% if
-				user_playoff.get(pg.id) == t1 %}checked{% endif %}
+				id="ppick_{{ pg.id }}_1" autocomplete="off" value="{{ t1 }}" {%
+				if user_playoff.get(pg.id) == t1 %}checked{% endif %}
 				onchange="savePlayoffPick({{ pg.id }}, {{ t1 }})" >
 				<label
 					class="btn btn-outline-primary pick-btn"
 					for="ppick_{{ pg.id }}_1"
 				>
 					<div class="text-block">
-						<strong>{{ teams[t1].seed }}. {{ teams[t1].name }}</strong>
+						<strong
+							>{{ teams[t1].seed }}. {{ teams[t1].name }}</strong
+						>
 					</div>
 					<img
 						src="http://a.espncdn.com/i/teamlogos/ncaa/500/{{teams[t1].espn_id}}.png"
 					/>
 				</label>
-	
+
 				<!-- Slot 2 -->
 				<input type="radio" class="btn-check" name="ppick_{{ pg.id }}"
-				id="ppick_{{ pg.id }}_2" autocomplete="off" value="{{ t2 }}" {% if
-				user_playoff.get(pg.id) == t2 %}checked{% endif %}
+				id="ppick_{{ pg.id }}_2" autocomplete="off" value="{{ t2 }}" {%
+				if user_playoff.get(pg.id) == t2 %}checked{% endif %}
 				onchange="savePlayoffPick({{ pg.id }}, {{ t2 }})" >
 				<label
 					class="btn btn-outline-primary pick-btn"
 					for="ppick_{{ pg.id }}_2"
 				>
 					<div class="text-block">
-						<strong>{{ teams[t2].seed }}. {{ teams[t2].name }}</strong>
+						<strong
+							>{{ teams[t2].seed }}. {{ teams[t2].name }}</strong
+						>
 					</div>
 					<img
 						src="http://a.espncdn.com/i/teamlogos/ncaa/500/{{teams[t2].espn_id}}.png"
@@ -227,4 +256,5 @@
 		</div>
 	</div>
 	{% endfor %}
-</div> {% endblock %}
+</div>
+{% endblock %}

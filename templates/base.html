@@ -26,7 +26,11 @@
 						href="/standings"
 						>Standings</a
 					>
-
+					<a
+						class="nav-link {% if request.path.startswith('/help') %}active{% endif %}"
+						href="/help"
+						>Help</a
+					>
 					{% if "user_id" not in session %}
 					<a
 						class="nav-link {% if request.path.startswith('/register') %}active{% endif %}"
@@ -50,7 +54,14 @@
 			</div>
 		</nav>
 
-		<div class="container-fluid">{% block content %} {% endblock %}</div>
+		<div class="container-fluid">
+			{% with messages = get_flashed_messages(with_categories=false) %}
+            {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-primary">{{ message }}</div>
+                    {% endfor %}
+            {% endif %}
+        {% endwith %}{% block content %} {% endblock %}</div>
 		<script
 			src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
 			integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
