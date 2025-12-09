@@ -5,6 +5,7 @@
         <h2>Hello, {{ user.name }}!</h2>
         {% if pick_count < total_available %}
             <div>Currently made {{ pick_count }} picks out of {{ total_available }} games.</div>
+			<a href="/picks"><button class="btn btn-primary mb-3">Click here to make your picks!</button></a>
         {% else %}
             <div>All picks have been made! Congrats!</div>
         {% endif %}

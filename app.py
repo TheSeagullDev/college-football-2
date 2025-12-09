@@ -415,6 +415,12 @@ def picks():
 
     bracket, visible_playoff = build_bracket_and_visible_playoff(playoff_games, user_playoff)
 
+    picks_number = len(Pick.query.filter_by(user_id=user_id).all())
+    playoff_pick_number = len(PlayoffPick.query.filter_by(user_id=user_id).all())
+    PLAYOFF_GAMES = 11
+    pick_count = picks_number + playoff_pick_number
+    total_available = len(Game.query.filter_by(is_playoff=False).all()) + PLAYOFF_GAMES
+
     teams = {t.id: t for t in Team.query.all()}
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return render_template(
@@ -424,7 +430,9 @@ def picks():
             playoff_games=playoff_games,
             user_playoff=visible_playoff,   # make template use this name
             bracket=bracket,
-            teams=teams
+            teams=teams,
+            pick_count=pick_count,
+            total_available=total_available
         )
     return render_template(
             "picks.html",
@@ -433,7 +441,9 @@ def picks():
             playoff_games=playoff_games,
             user_playoff=visible_playoff,   # make template use this name
             bracket=bracket,
-            teams=teams
+            teams=teams,
+            pick_count=pick_count,
+            total_available=total_available
         )
 
 
