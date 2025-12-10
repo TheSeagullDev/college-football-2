@@ -78,7 +78,7 @@ class PlayoffPick(db.Model):
     __tablename__ = "playoff_picks"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     playoff_game_id = db.Column(db.Integer, db.ForeignKey("playoff_games.id"), nullable=False)
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=False)
     team = db.relationship("Team", foreign_keys=[team_id])

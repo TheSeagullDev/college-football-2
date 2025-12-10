@@ -2,6 +2,8 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=flask
 
 node_modules/
+backups/
+*.sh
 
 ### Flask ###
 instance/*
