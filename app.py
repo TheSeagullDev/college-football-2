@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, session, redirect, url_for, flash, jsonify
 import os, hashlib
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import func
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
 from datetime import datetime, timedelta
@@ -89,6 +90,7 @@ class User(db.Model):
     name = db.Column(db.String(50), nullable=False)
     score = db.Column(db.Integer)
     password_hash = db.Column(db.String(255), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False)
 
     def __init__(self, **kwargs):
         raw_password = kwargs.pop("password", None)
@@ -525,6 +527,46 @@ def standings():
         })
 
     return render_template("standings.html", leaderboard=leaderboard)
+
+@app.route("/admin")
+@login_required
+def admin():
+    user = User.query.filter_by(id=session["user_id"]).first()
+    if not user.is_admin:
+        return redirect("/")
+    regular_counts = (
+        db.session.query(
+            Pick.user_id,
+            func.count(Pick.id).label('regular_count')
+        )
+        .group_by(Pick.user_id)
+        .subquery()
+    )
+
+    playoff_counts = (
+        db.session.query(
+            PlayoffPick.user_id,
+            func.count(PlayoffPick.id).label('playoff_count')
+        )
+        .group_by(PlayoffPick.user_id)
+        .subquery()
+    )
+
+    # Join users with counts
+    results = (
+        db.session.query(
+            User.id,
+            User.name,     # swapped in
+            User.email,    # added
+            func.coalesce(regular_counts.c.regular_count, 0),
+            func.coalesce(playoff_counts.c.playoff_count, 0)
+        )
+        .outerjoin(regular_counts, User.id == regular_counts.c.user_id)
+        .outerjoin(playoff_counts, User.id == playoff_counts.c.user_id)
+        .all()
+    )
+
+    return render_template("admin.html", results=results)
 
 @app.route("/help", methods=["GET", "POST"])
 def help():
