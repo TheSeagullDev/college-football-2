@@ -408,7 +408,7 @@ def index():
 def picks():
     user_id = session["user_id"]
 
-    games = Game.query.filter_by(is_playoff=False).all()
+    games = Game.query.filter_by(is_playoff=False).order_by(Game.start_date.asc()).all()
     picks = Pick.query.filter_by(user_id=user_id).all()
     user_picks = {p.game_id: p.chosen_team for p in picks}
 
