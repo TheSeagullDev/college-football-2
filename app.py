@@ -130,28 +130,32 @@ def update_scores():
         db.session.commit()
 
         # ---------- REGULAR SEASON ----------
-        picks = Pick.query.all()
-        for pick in picks:
-            g = pick.game
-            if not g.completed:
-                continue
+        games = Game.query.filter_by(completed=True).all()
+        users = User.query.all();
+        for game in games:
+            for user in users:
+                pick = Pick.query.filter_by(game_id=game.id, user_id=user.id).first()
+                favorite = ""
+                if game.line < 0:
+                    favorite = game.home_team
+                elif game.line > 0:
+                    favorite = game.away_team
+                picked_team = pick.chosen_team if (pick is not None) else favorite
 
-            user = User.query.get(pick.user_id)
+                home = game.home_score
+                away = game.away_score
+                diff = home - away + game.line
 
-            home = g.home_score
-            away = g.away_score
-            diff = home - away + g.line
+                if diff > 0:
+                    winner = game.home_team
+                elif diff < 0:
+                    winner = game.away_team
+                else:
+                    winner = "push"
 
-            if diff > 0:
-                winner = g.home_team
-            elif diff < 0:
-                winner = g.away_team
-            else:
-                winner = "push"
-
-            if pick.chosen_team == winner:
-                user.score += g.point_value
-                db.session.add(user)
+                if picked_team == winner:
+                    user.score += game.point_value
+                    db.session.add(user)
 
         db.session.commit()
 
