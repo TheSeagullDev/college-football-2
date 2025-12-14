@@ -5,15 +5,25 @@
         <h2>Hello, {{ user.name }}!</h2>
         {% if pick_count < total_available %}
             <div>Currently made {{ pick_count }} picks out of {{ total_available }} games.</div>
-			<a href="/picks"><button class="btn btn-primary mb-3">Click here to make your picks!</button></a>
+            <a href="/picks">
+                <button class="btn btn-primary mb-3">Click here to make your picks!</button>
+            </a>
         {% else %}
             <div>All picks have been made! Congrats!</div>
         {% endif %}
-		<a href="/help"><button class="btn btn-danger mb-3">Need help? Click here!</button></a>
+        <a href="/help">
+            <button class="btn btn-danger mb-3">Need help? Click here!</button>
+        </a>
     {% else %}
         <h2>Welcome!</h2>
-		<a href="/register"><button class="btn btn-primary mb-3">New here? Register!</button></a>
-		<a href="/login"><button class="btn btn-primary mb-3">Already have an account? Sign in!</button></a>
-		<a href="/help"><button class="btn btn-danger mb-3">Need help? Click here!</button></a>
+        <a href="/register">
+            <button class="btn btn-primary mb-3">New here? Register!</button>
+        </a>
+        <a href="/login">
+            <button class="btn btn-primary mb-3">Already have an account? Sign in!</button>
+        </a>
+        <a href="/help">
+            <button class="btn btn-danger mb-3">Need help? Click here!</button>
+        </a>
     {% endif %}
 {% endblock %}

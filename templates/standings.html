@@ -1,22 +1,21 @@
 {% extends "base.html" %}
-
 {% block content %}
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th scope="col">Position</th>
-            <th scope="col">Name</th>
-            <th scope="col">Score</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for user in leaderboard %}
-        <tr>
-            <td>{{ user.rank }}</td>
-            <td>{{ user.name }}</td>
-            <td>{{ user.score }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th scope="col">Position</th>
+                <th scope="col">Name</th>
+                <th scope="col">Score</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in leaderboard %}
+                <tr>
+                    <td>{{ user.rank }}</td>
+                    <td>{{ user.name }}</td>
+                    <td>{{ user.score }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 {% endblock %}

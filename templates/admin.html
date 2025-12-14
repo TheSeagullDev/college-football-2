@@ -1,28 +1,24 @@
 {% extends "base.html" %}
 {% block content %}
-
-<h1 class="mb-4">Admin Dashboard</h1>
-
-<table class="table">
-    <tr>
-        <th>User ID</th>
-        <th>Name</th>
-        <th>Email</th>
-        <th>Regular Picks</th>
-        <th>Playoff Picks</th>
-        <th>Total Picks</th>
-    </tr>
-
-    {% for user_id, name, email, regular_count, playoff_count in results %}
-    <tr>
-        <td>{{ user_id }}</td>
-        <td>{{ name }}</td>
-        <td>{{ email }}</td>
-        <td class="{{ 'table-danger' if regular_count < 35 }}">{{ regular_count }} / 35</td>
-        <td class="{{ 'table-danger' if playoff_count < 11 }}">{{ playoff_count }} / 11</td>
-        <td class="{{ 'table-danger' if playoff_count + regular_count < 46 }}">{{ regular_count + playoff_count }} / 46</td>
-    </tr>
-    {% endfor %}
-</table>
-
+    <h1 class="mb-4">Admin Dashboard</h1>
+    <table class="table">
+        <tr>
+            <th>User ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Regular Picks</th>
+            <th>Playoff Picks</th>
+            <th>Total Picks</th>
+        </tr>
+        {% for user_id, name, email, regular_count, playoff_count in results %}
+            <tr>
+                <td>{{ user_id }}</td>
+                <td>{{ name }}</td>
+                <td>{{ email }}</td>
+                <td class="{{ 'table-danger' if regular_count < 35 }}">{{ regular_count }} / 35</td>
+                <td class="{{ 'table-danger' if playoff_count < 11 }}">{{ playoff_count }} / 11</td>
+                <td class="{{ 'table-danger' if playoff_count + regular_count < 46 }}">{{ regular_count + playoff_count }} / 46</td>
+            </tr>
+        {% endfor %}
+    </table>
 {% endblock %}
